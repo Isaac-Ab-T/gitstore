@@ -50,13 +50,24 @@ your-github-repo/
 
 ### 1. Maven Dependency
 
-Add GitStore to your `pom.xml`:
+Add JitPack and the GitStore dependency to your project's `pom.xml`:
 
+#### Step A: Add JitPack repository
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+```
+
+#### Step B: Add GitStore dependency
 ```xml
 <dependency>
-    <groupId>com.gitstore</groupId>
-    <artifactId>gitstore-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <groupId>com.github.Isaac-Ab-T</groupId>
+    <artifactId>gitstore</artifactId>
+    <version>main-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -74,9 +85,19 @@ gitstore:
   base-path: "data"                # Root directory inside repo (defaults to 'data')
 ```
 
-> 💡 **GitHub Token Requirements**:
-> - **Fine-Grained PAT**: Repository permissions -> `Contents: Read and write`.
-> - **Classic PAT**: Select the `repo` scope.
+> 💡 **GitHub Token Requirements & Setup Guide**:
+>
+> To follow the principle of least privilege, generate a **Fine-grained Personal Access Token (PAT)**:
+> 1. In GitHub, go to **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**.
+> 2. Click **Generate new token**.
+> 3. Under **Repository access**, choose **Only select repositories** and pick your target storage repository.
+> 4. Under **Permissions** → **Repository permissions**, configure:
+>    - **Contents**: Select **Read and write** *(required to read blobs/trees and push commit objects)*.
+>    - *(GitHub will automatically select **Metadata: Read-only**, which is required)*.
+>    - Leave **all other permissions** set to **No access**.
+> 5. Click **Generate token** and copy your token starting with `github_pat_...`.
+>
+> *(Alternatively, if using a **Classic PAT**, select only the `repo` scope).*
 
 ---
 

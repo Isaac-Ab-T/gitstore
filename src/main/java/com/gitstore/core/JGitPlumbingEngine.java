@@ -334,13 +334,36 @@ public class JGitPlumbingEngine {
         }
         try {
             Git git = new Git(repository);
+            // Fetch target branch or HEAD
             git.fetch()
                     .setRemote(repoUri)
-                    .setRefSpecs(new RefSpec("+refs/heads/" + branch + ":refs/heads/" + branch))
+                    .setRefSpecs(
+                            new RefSpec("+refs/heads/" + branch + ":refs/heads/" + branch),
+                            new RefSpec("+refs/heads/main:refs/remotes/origin/main"),
+                            new RefSpec("+refs/heads/master:refs/remotes/origin/master")
+                    )
                     .setCredentialsProvider(getCredentialsProvider())
                     .call();
+
+            // If the target branch does not exist yet on remote, fork it from the default branch (main/master)
+            Ref targetRef = repository.exactRef("refs/heads/" + branch);
+            if (targetRef == null) {
+                Ref defaultRef = repository.exactRef("refs/remotes/origin/main");
+                if (defaultRef == null) {
+                    defaultRef = repository.exactRef("refs/remotes/origin/master");
+                }
+                if (defaultRef != null) {
+                    log.info("Branch '{}' not found on remote. Initializing it from '{}' ({})",
+                            branch, defaultRef.getName(), defaultRef.getObjectId().name());
+                    updateLocalRef(defaultRef.getObjectId());
+                } else {
+                    log.info("Branch '{}' not found and repository appears empty. First commit will be an orphan root commit.", branch);
+                }
+            }
         } catch (GitAPIException e) {
             log.debug("Fetch failed or repository is empty/uninitialized: {}", e.getMessage());
+        } catch (IOException e) {
+            log.warn("Failed to initialize branch ref locally: {}", e.getMessage());
         }
     }
 
