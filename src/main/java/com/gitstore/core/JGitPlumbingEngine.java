@@ -1,7 +1,10 @@
 package com.gitstore.core;
 
+import com.gitstore.exception.AuthenticationException;
 import com.gitstore.exception.DocumentNotFoundException;
 import com.gitstore.exception.GitStoreException;
+import com.gitstore.exception.PushConflictException;
+import com.gitstore.exception.RepositoryAccessException;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.dircache.DirCache;
@@ -381,15 +384,47 @@ public class JGitPlumbingEngine {
 
             for (PushResult result : pushResults) {
                 for (RemoteRefUpdate rru : result.getRemoteUpdates()) {
-                    if (rru.getStatus() != RemoteRefUpdate.Status.OK &&
-                        rru.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
-                        throw new GitStoreException("Push failed: " + rru.getStatus() + " - " + rru.getMessage());
+                    if (rru.getStatus() == RemoteRefUpdate.Status.REJECTED_NON_FAST_FORWARD) {
+                        throw new PushConflictException(
+                                "Push rejected (non-fast-forward). Another commit was pushed to branch '" + branch +
+                                "' before this write completed. Message: " + rru.getMessage()
+                        );
+                    } else if (rru.getStatus() != RemoteRefUpdate.Status.OK &&
+                               rru.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
+                        throw new GitStoreException("Push failed with status " + rru.getStatus() + ": " + rru.getMessage());
                     }
                 }
             }
+        } catch (org.eclipse.jgit.api.errors.TransportException e) {
+            handleTransportException(e);
         } catch (GitAPIException e) {
-            throw new GitStoreException("Git push failed to " + repoUri, e);
+            throw new GitStoreException("Git push failed to " + repoUri + ": " + e.getMessage(), e);
         }
+    }
+
+    private void handleTransportException(org.eclipse.jgit.api.errors.TransportException e) {
+        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+
+        if (msg.contains("not authorized") || msg.contains("authentication not supported") ||
+            msg.contains("invalid credentials") || msg.contains("401")) {
+            throw new AuthenticationException(
+                    "GitHub authentication failed. Please verify that your GITHUB_TOKEN is valid, active, and not expired.", e
+            );
+        }
+
+        if (msg.contains("permission denied") || msg.contains("403")) {
+            throw new RepositoryAccessException(
+                    "Permission denied for repository '" + repoUri + "'. Ensure the token has 'Contents: Read and write' scope.", e
+            );
+        }
+
+        if (msg.contains("not found") || msg.contains("404")) {
+            throw new RepositoryAccessException(
+                    "Repository '" + repoUri + "' not found. Check the owner/repo path and repository visibility.", e
+            );
+        }
+
+        throw new GitStoreException("Git transport error communicating with remote repository: " + e.getMessage(), e);
     }
 
     public static class StoredBlob {
