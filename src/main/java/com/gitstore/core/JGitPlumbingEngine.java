@@ -389,7 +389,7 @@ public class JGitPlumbingEngine {
 
             for (PushResult result : pushResults) {
                 for (RemoteRefUpdate rru : result.getRemoteUpdates()) {
-                    if (rru.getStatus() == RemoteRefUpdate.Status.REJECTED_NON_FAST_FORWARD) {
+                    if (rru.getStatus() == RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD) {
                         throw new PushConflictException(
                                 "Push rejected (non-fast-forward). Another commit was pushed to branch '" + branch +
                                 "' before this write completed. Message: " + rru.getMessage()
