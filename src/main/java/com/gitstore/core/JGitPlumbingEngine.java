@@ -205,13 +205,15 @@ public class JGitPlumbingEngine {
             ObjectId newCommitId = inserter.insert(commitBuilder);
             inserter.flush();
 
-            // Update local ref
-            updateLocalRef(newCommitId);
-
-            // 4. Push to remote
+            // 4. Push to remote FIRST before advancing our local branch pointer
             pushCommit(newCommitId);
 
+            // 5. Only advance local branch ref once GitHub acknowledges successful push
+            updateLocalRef(newCommitId);
+
             return newCommitId.name();
+        } catch (GitStoreException e) {
+            throw e;
         } catch (Exception e) {
             throw new GitStoreException("Failed to write Git document at " + fullPath, e);
         }
@@ -274,11 +276,14 @@ public class JGitPlumbingEngine {
             ObjectId newCommitId = inserter.insert(commitBuilder);
             inserter.flush();
 
-            updateLocalRef(newCommitId);
+            // Push to remote FIRST before advancing local branch ref
             pushCommit(newCommitId);
+            updateLocalRef(newCommitId);
 
             return newCommitId.name();
         } catch (DocumentNotFoundException e) {
+            throw e;
+        } catch (GitStoreException e) {
             throw e;
         } catch (Exception e) {
             throw new GitStoreException("Failed to delete Git document at " + fullPath, e);
